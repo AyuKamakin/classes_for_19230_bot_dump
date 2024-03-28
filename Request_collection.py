@@ -73,9 +73,17 @@ class Request_collection:
     def print(self):
         for key, value in self._requests.items():
             print(f'{key}: {value}')
+    #кодировка в красивый json
+    def to_json(self):
+        return json.dumps(self._requests ,ensure_ascii=False, default=lambda o: o.__dict__, indent=2)
+    #разкодировка из красивого json и копирование внутрь коллекции
+    def copy_from_json(self, json_str):
+        data = json.loads(json_str)
+        for key, value in data.items():
+            self.create_and_add_request(value['id'], value['equipment'], value['status'], value['number'], value['postamat_id'], value['user_id'])
 
     # кодировка в страшный json с большим количеством текста
-    def serialize_ugly(self):
+    def to_ugly_json(self):
         return jsonpickle.encode(self._requests)
 
     # разкодировка из страшного jsonа с большим количеством текста
@@ -312,10 +320,18 @@ print(
     f"идентификаторы запросов от пользователя,: {new_random_reqs_from_that_user[list(new_random_reqs_from_that_user.keys())[0]].user_id}, которых {len(new_random_reqs_from_that_user)} шт, таковы:")
 print(new_random_reqs_from_that_user)
 
-print('Попробуем сереализацию в Json:')
-serzd = new_random_reqs_from_that_user.serialize_ugly()
+print('Попробуем сереализацию в стремный Json:')
+serzd = new_random_reqs_from_that_user.to_ugly_json()
 print(serzd)
-print('Попробуем десереализацию в Json:')
+print('Попробуем десереализацию в стремный Json:')
 requests_obj = Request_collection()
 requests_obj.copy_from_ugly_json(serzd)
 print(requests_obj)
+print('Попробуем сереализацию в норм Json:')
+requests_obj.clear()
+serzd=new_random_reqs_from_that_user.to_json()
+print(serzd)
+print('Попробуем десереализацию из Json:')
+requests_obj.copy_from_json(serzd)
+print(requests_obj)
+
