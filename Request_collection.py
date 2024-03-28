@@ -1,5 +1,7 @@
+import json
 import random
 from Request import Request
+import jsonpickle
 
 # переменная arduino_devices используется исключительно в генераторе случайных запросов
 
@@ -71,6 +73,15 @@ class Request_collection:
     def print(self):
         for key, value in self._requests.items():
             print(f'{key}: {value}')
+
+    # кодировка в страшный json с большим количеством текста
+    def serialize_ugly(self):
+        return jsonpickle.encode(self._requests)
+
+    # разкодировка из страшного jsonа с большим количеством текста
+
+    def copy_from_ugly_json(self, serialized):
+        self.copy_all_from_old(jsonpickle.decode(serialized))
 
     # Добавление существующего/заранее созданного объекта класса в коллекцию
     def add_existing_request(self, new_request):
@@ -168,12 +179,18 @@ class Request_collection:
     def copy_from_list(self, requests_list):
         for request in requests_list:
             self.add_existing_request(request)
+
+    def copy_all_from_old(self, old_dict):
+        for req in old_dict.values():
+            self.add_existing_request(req)
+
     # Удаление указанных копий объектов из коллекции
     def delete_by_list(self, reqs: list):
         if len(reqs) > 0:
             for key in reqs:
                 if key in self._requests.values():
                     del self._requests[key.id]
+
     # Далее идут переписанные методы, которые возвращают не списки объектов, а только id в оригинальной коллекции
     def get_ids_from_request_list(self):
         return [request.id for request in self]
@@ -230,7 +247,6 @@ class Request_collection:
             for key in keys:
                 if key in self._requests:
                     del self._requests[key]
-
 
     # Получение id объектов по postamat_id
     def get_requests_id_by_postamat_id(self, postamat_id: int):
@@ -295,3 +311,11 @@ new_random_reqs_from_that_user.generate_random_requests(num=3, user_id=reqs[rand
 print(
     f"идентификаторы запросов от пользователя,: {new_random_reqs_from_that_user[list(new_random_reqs_from_that_user.keys())[0]].user_id}, которых {len(new_random_reqs_from_that_user)} шт, таковы:")
 print(new_random_reqs_from_that_user)
+
+print('Попробуем сереализацию в Json:')
+serzd = new_random_reqs_from_that_user.serialize_ugly()
+print(serzd)
+print('Попробуем десереализацию в Json:')
+requests_obj = Request_collection()
+requests_obj.copy_from_ugly_json(serzd)
+print(requests_obj)
