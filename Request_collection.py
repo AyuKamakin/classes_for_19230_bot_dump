@@ -158,7 +158,7 @@ class Request_collection:
                 if user_id is not None:
                     req.user_id = user_id
         if len(requests) > 0:
-            return reqs
+            return requests
 
     # Полная замена содержимого запроса на инфу из объекта с таким же id
     def update_request_by_id(self, changable_id: int, new_info: Request):
@@ -226,7 +226,7 @@ class Request_collection:
         if status_requests:
             return status_requests
         else:
-            return False
+            return []
 
     # Методы извлечения id запросов по конкретному статусу, текстовое значнеие переменной лежит наверху
     def get_ready_requests_id(self):
@@ -269,22 +269,18 @@ class Request_collection:
     def generate_random_requests(self, num, new_id=None, equipment=None, status=None, number=None, postamat_id=None,
                                  user_id=None):
         for _ in range(num):
-            if new_id is None:
-                new_id = random.randint(1, 1000000)
-            if equipment is None:
-                equipment = random.choice(arduino_devices)
-            if status is None:
-                status = random.choice(statuses)
-            if number is None:
-                number = random.randint(0, 100)
-            if postamat_id is None:
-                postamat_id = random.randint(0, 5)
-            if user_id is None:
-                user_id = random.randint(1, 1000000)
+            request_new_id = random.randint(1, 1000000) if new_id is None else new_id
+            request_equipment = random.choice(arduino_devices) if equipment is None else equipment
+            request_status = random.choice(statuses) if status is None else status
+            request_number = random.randint(0, 100) if number is None else number
+            request_postamat_id = random.randint(0, 5) if postamat_id is None else postamat_id
+            request_user_id = random.randint(1, 1000000) if user_id is None else user_id
 
-            self.create_and_add_request(new_id, equipment, status, number, postamat_id, user_id)
+            self.create_and_add_request(request_new_id, request_equipment, request_status,
+                                        request_number, request_postamat_id, request_user_id)
 
 
+'''
 reqs = Request_collection()
 
 reqs.generate_random_requests(num=15)
@@ -334,4 +330,4 @@ print(serzd)
 print('Попробуем десереализацию из Json:')
 requests_obj.copy_from_json(serzd)
 print(requests_obj)
-
+'''
