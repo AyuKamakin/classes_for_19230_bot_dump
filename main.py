@@ -10,7 +10,7 @@ from Request_collection import Request_collection
 from Request import Request
 
 all_user_reqs = {'curr': Request_collection()}
-all_user_reqs['curr'].generate_random_requests(num=100)
+all_user_reqs['curr'].generate_random_requests(num=random.randint(10, 30))
 # t.me/TestBotHelloWorld_bot
 
 with open('.env', 'r') as file:
@@ -20,33 +20,101 @@ API_TOKEN = token
 
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot)
-bot['api_timeout'] = 100  # Установка тайм-аута в 100 секунд
+bot['api_timeout'] = 10000  # Установка тайм-аута в 100 секунд
 
 
 @dp.message_handler(commands=['start'])
 async def start(message: types.Message):
     keyboard_menu = InlineKeyboardMarkup(row_width=2)
     keyboard_menu.add(
-        InlineKeyboardButton("Ожидающие выдачи", callback_data='awaiting'),
-        InlineKeyboardButton("Одобренные", callback_data='approved'),
-        InlineKeyboardButton("В обработке", callback_data='processing'),
-        InlineKeyboardButton("Отказано", callback_data='declined')
+        InlineKeyboardButton("Запросить оборудование", callback_data='create_request'),
+        InlineKeyboardButton("Мои запросы", callback_data='show_requests'),
+        InlineKeyboardButton("Сменить пользователя", callback_data='change_user'),
     )
-    all_reqs_message = 'Вы успешно авторизованы!\nНа данный момент у вас имеется ' + str(len(all_user_reqs['curr'])) + ' запросов, где:\n' + \
-               str(len(all_user_reqs['curr'].get_ready_requests_id())) + ' ожидающих получения,\n' + \
-               str(len(all_user_reqs['curr'].get_approved_requests_id())) + ' одобренных,\n' + \
-               str(len(all_user_reqs['curr'].get_awaiting_requests_id())) + ' в обработке,\n' + \
-               str(len(all_user_reqs['curr'].get_declined_requests_id())) + ' отклонены'
+    all_reqs_message = 'Вы успешно авторизованы!'
     await message.answer(all_reqs_message, reply_markup=keyboard_menu)
 
 
-# Обработчик Inline кнопки
-@dp.callback_query_handler(lambda c: c.data == 'button_click1')
+#группа методов ветки просмотра созданных запросов
+@dp.callback_query_handler(lambda c: c.data == 'show_requests')
+async def process_callback_button_click(callback_query: types.CallbackQuery):
+    keyboard_menu = InlineKeyboardMarkup(row_width=1)
+    keyboard_menu.add(
+        InlineKeyboardButton("Ожидающие выдачи", callback_data='show_awaiting'),
+        InlineKeyboardButton("В доставке", callback_data='show_approved'),
+        InlineKeyboardButton("Обрабатываются", callback_data='show_processing'),
+        InlineKeyboardButton("Отказано", callback_data='show_declined')
+    )
+    all_reqs_message = 'На данный момент у вас имеется ' + str(
+        len(all_user_reqs['curr'])) + ' запросов, где:\n' + \
+                       str(len(all_user_reqs['curr'].get_ready_requests_id())) + ' ожидающих получения,\n' + \
+                       str(len(all_user_reqs['curr'].get_approved_requests_id())) + ' в доставке,\n' + \
+                       str(len(all_user_reqs['curr'].get_awaiting_requests_id())) + ' в обработке,\n' + \
+                       str(len(all_user_reqs['curr'].get_declined_requests_id())) + ' отклонены'
+    await bot.send_message(callback_query.from_user.id, all_reqs_message, reply_markup=keyboard_menu)
+
+
+# Просмотр готового к получению оборудования
+
+back_to_show_all_reqs = InlineKeyboardMarkup()
+back_to_show_all_reqs.add(InlineKeyboardButton("Назад", callback_data='show_requests'))
+@dp.callback_query_handler(lambda c: c.data == 'show_awaiting')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    await bot.send_message(callback_query.from_user.id, "Вы нажали на Inline кнопку цифры 1.")
+    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) ожидают выдачи:\n'
+    for i in all_user_reqs['curr'].get_awaiting_requests():
+        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата'
+
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+
+
+# Просмотр одобренных запросов, которые еще в доставке
+@dp.callback_query_handler(lambda c: c.data == 'show_approved')
+async def process_callback_button_click(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) находятся в доставке:\n'
+    for i in all_user_reqs['curr'].get_approved_requests():
+        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата, когда оборудование ' \
+            'будет готово к выдаче'
+
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+
+
+# Просмотр одобренных запросов, которые в обработке
+@dp.callback_query_handler(lambda c: c.data == 'show_processing')
+async def process_callback_button_click(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) находятся в обработке:\n'
+    for i in all_user_reqs['curr'].get_awaiting_requests():
+        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата, когда оборудование ' \
+            'будет готово к выдаче'
+
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+
+
+# Просмотр одобренных запросов, в которых отказано
+@dp.callback_query_handler(lambda c: c.data == 'show_declined')
+async def process_callback_button_click(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
+    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} ваших запрос(ов) отклонены:\n'
+    for i in all_user_reqs['curr'].get_awaiting_requests():
+        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
 
 
 # Запуск бота
 if __name__ == '__main__':
     executor.start_polling(dp, skip_updates=True)
+    # здесь должен делаться запрос к бд и оттуда в all_user_reqs вытягиваться в all_user_reqs[userid по телеге/еще как хз] данные по запросам пользователя,
+    # all_user_reqs[userid по телеге/еще как хз] это класс Request_collection
