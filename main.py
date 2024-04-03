@@ -35,9 +35,10 @@ async def start(message: types.Message):
     await message.answer(all_reqs_message, reply_markup=keyboard_menu)
 
 
-#группа методов ветки просмотра созданных запросов
+# группа методов ветки просмотра созданных запросов - первая версия
 @dp.callback_query_handler(lambda c: c.data == 'show_requests')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
+    await bot.answer_callback_query(callback_query.id)
     keyboard_menu = InlineKeyboardMarkup(row_width=1)
     keyboard_menu.add(
         InlineKeyboardButton("Ожидающие выдачи", callback_data='show_awaiting'),
@@ -52,65 +53,70 @@ async def process_callback_button_click(callback_query: types.CallbackQuery):
                        str(len(all_user_reqs['curr'].get_awaiting_requests_id())) + ' в обработке,\n' + \
                        str(len(all_user_reqs['curr'].get_declined_requests_id())) + ' отклонены'
     await bot.send_message(callback_query.from_user.id, all_reqs_message, reply_markup=keyboard_menu)
+    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
 # Просмотр готового к получению оборудования
 
 back_to_show_all_reqs = InlineKeyboardMarkup()
 back_to_show_all_reqs.add(InlineKeyboardButton("Назад", callback_data='show_requests'))
+
+
 @dp.callback_query_handler(lambda c: c.data == 'show_awaiting')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) ожидают выдачи:\n'
-    for i in all_user_reqs['curr'].get_awaiting_requests():
-        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
-    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата'
-
-    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+    reqs = all_user_reqs["curr"].get_ready_requests()
+    mess = f'на данный момент {len(reqs)} запрос(ов) ожидают выдачи:\n'
+    # for i in all_user_reqs['curr'].get_awaiting_requests():
+    #    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+    #    mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+    # mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
+    # mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата'
+    keyboard = gen_reqs_keyboard(reqs, 'show_requests')
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=keyboard)
+    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
 # Просмотр одобренных запросов, которые еще в доставке
 @dp.callback_query_handler(lambda c: c.data == 'show_approved')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
+    reqs = all_user_reqs["curr"].get_approved_requests()
     mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) находятся в доставке:\n'
-    for i in all_user_reqs['curr'].get_approved_requests():
-        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
-    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата, когда оборудование ' \
-            'будет готово к выдаче'
-
-    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+    keyboard = gen_reqs_keyboard(reqs, 'show_requests')
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=keyboard)
+    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
 # Просмотр одобренных запросов, которые в обработке
 @dp.callback_query_handler(lambda c: c.data == 'show_processing')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} запрос(ов) находятся в обработке:\n'
-    for i in all_user_reqs['curr'].get_awaiting_requests():
-        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
-    mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-    mess += 'Для забора оборудования приложите пропуск ВШЭ к считывателю указанного постамата, когда оборудование ' \
-            'будет готово к выдаче'
-
-    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+    reqs = all_user_reqs["curr"].get_awaiting_requests()
+    mess = f'на данный момент {len(reqs)} запрос(ов) находятся в обработке:\n'
+    keyboard = gen_reqs_keyboard(reqs, 'show_requests')
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=keyboard)
+    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
 
 # Просмотр одобренных запросов, в которых отказано
 @dp.callback_query_handler(lambda c: c.data == 'show_declined')
 async def process_callback_button_click(callback_query: types.CallbackQuery):
     await bot.answer_callback_query(callback_query.id)
-    mess = f'на данный момент {len(all_user_reqs["curr"].get_awaiting_requests())} ваших запрос(ов) отклонены:\n'
-    for i in all_user_reqs['curr'].get_awaiting_requests():
-        mess += '\n-----------------------------------------------------------------------------------------------------\n\n'
-        mess += f'ID = {i.id}\n\nОборудование: {i.equipment}\n\nКоличество: {i.number}\n\nПостамат: {i.postamat_id}\n'
+    reqs = all_user_reqs["curr"].get_declined_requests()
+    mess = f'на данный момент {len(reqs)} ваших запрос(ов) отклонены:\n'
+    keyboard = gen_reqs_keyboard(reqs, 'show_requests')
+    await bot.send_message(callback_query.from_user.id, mess, reply_markup=keyboard)
+    await bot.delete_message(callback_query.message.chat.id, callback_query.message.message_id)
 
-    await bot.send_message(callback_query.from_user.id, mess, reply_markup=back_to_show_all_reqs)
+
+def gen_reqs_keyboard(reqs_list, back_name):
+    new_keyboard = InlineKeyboardMarkup()
+    for i in reqs_list:
+        new_keyboard.add(InlineKeyboardButton(f'ID: {i.id}\n{i.equipment}, {i.number} шт, Постамат: {i.postamat_id}',
+                                              callback_data='show_requests'))
+    new_keyboard.add(InlineKeyboardButton("Назад", callback_data=back_name))
+    return new_keyboard
 
 
 # Запуск бота
